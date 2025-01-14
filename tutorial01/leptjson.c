@@ -6,13 +6,14 @@
 
 typedef struct {
     const char* json;
-}lept_context;
+}lept_context;  /* 包含json字符串的一个结构体 */
+ 
 
 static void lept_parse_whitespace(lept_context* c) {
-    const char *p = c->json;
+    const char * p = c->json;   /*提取json字符串的首地址*/
     while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
         p++;
-    c->json = p;
+    c->json = p; 
 }
 
 static int lept_parse_null(lept_context* c, lept_value* v) {
@@ -24,10 +25,32 @@ static int lept_parse_null(lept_context* c, lept_value* v) {
     return LEPT_PARSE_OK;
 }
 
+static int lept_parse_true(lept_context* c, lept_value* v) {
+    EXPECT(c, 't');
+    if (c->json[0]!= 'r' || c->json[1]!= 'u' || c->json[2]!= 'e')
+        return LEPT_PARSE_INVALID_VALUE;
+    c->json += 3;
+    v->type = LEPT_TRUE;
+    return LEPT_PARSE_OK;
+}
+
+static int lept_parse_false(lept_context* c, lept_value* v)
+{
+    EXPECT(c, 'f');
+    if (c->json[0]!= 'a' || c->json[1]!= 'l' || c->json[2]!= 's' || c->json[3]!= 'e')
+        return LEPT_PARSE_INVALID_VALUE;
+    c->json += 4;
+    v->type = LEPT_FALSE;
+    return LEPT_PARSE_OK;
+}
+
 static int lept_parse_value(lept_context* c, lept_value* v) {
     switch (*c->json) {
         case 'n':  return lept_parse_null(c, v);
         case '\0': return LEPT_PARSE_EXPECT_VALUE;
+        case 't': return lept_parse_true(c, v);
+        case 'f': return lept_parse_false(c, v);
+        
         default:   return LEPT_PARSE_INVALID_VALUE;
     }
 }
@@ -37,8 +60,17 @@ int lept_parse(lept_value* v, const char* json) {
     assert(v != NULL);
     c.json = json;
     v->type = LEPT_NULL;
+    lept_parse_whitespace(&c); /*把空格都去掉*/
+    int ret = lept_parse_value(&c, v);
+    if (ret != LEPT_PARSE_OK)
+    {
+        return ret;
+    }
     lept_parse_whitespace(&c);
-    return lept_parse_value(&c, v);
+    if(c.json[0]!= '\0')
+    {
+        return LEPT_PARSE_ROOT_NOT_SINGULAR;
+    }
 }
 
 lept_type lept_get_type(const lept_value* v) {
